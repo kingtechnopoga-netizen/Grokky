@@ -1,79 +1,93 @@
 # Grokky
 
-A tiny single-page chat app that uses [Grok](https://x.ai/) via [Puter.js](https://developer.puter.com/tutorials/free-unlimited-grok-api/) — no API key, no backend, no signup for you.
+A free, single-page chat & image generation app. **No API key. No signup. No paid credits.**
+
+Powered by [Pollinations.ai](https://pollinations.ai), an open-source AI platform that exposes anonymous-tier endpoints with no auth required.
+
+## What you get
+
+| | Pollinations.ai (this app) | Puter.js | OpenAI / xAI direct |
+|---|---|---|---|
+| Cost to you (developer) | Free | Free | Pay per token |
+| Cost to end users | **$0** | $0.005-$0.07 per image | N/A |
+| User signup | **None** | Required | Required |
+| API key | **None** | None (uses user's account) | Required |
+| Image generation | ✅ Unlimited | ✅ Per-credit | ✅ Per-credit |
+| Streaming chat | ✅ | ✅ | ✅ |
 
 ## How it works
 
-Puter.js uses a **"User-Pays"** model: your end-user signs in to their (free) Puter account once in the browser, and Grok usage is billed to them — not to you. That means you can ship `index.html` as a static file with zero server-side setup.
-
-The page calls `puter.ai.chat()` with streaming + multi-turn history:
+Two endpoints, both keyless:
 
 ```js
-const response = await puter.ai.chat(history, {
-  model: 'x-ai/grok-4.3',
-  stream: true,
+// Chat — OpenAI-compatible, streaming
+fetch('https://text.pollinations.ai/openai', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    model: 'openai-fast',          // GPT-OSS 20B (anonymous tier)
+    messages: [{ role: 'user', content: 'Hello!' }],
+    stream: true,
+  }),
 });
 
-for await (const part of response) {
-  console.log(part.text);
-}
+// Image — just a URL, no code needed
+const url = `https://image.pollinations.ai/prompt/${encodeURIComponent('a red cat')}?width=1024&height=1024&nologo=true`;
+document.body.innerHTML = `<img src="${url}">`;
 ```
 
-## Deploy to Render (free)
+That's the whole "API integration." Images are returned as JPEG directly; you can drop the URL into any `<img>` tag.
 
-This repo includes a [`render.yaml`](./render.yaml) Blueprint that deploys it as a **Static Site** — free tier, no spin-down, auto-deploys on every push to `main`.
+## Features
+
+- **Chat mode** with streaming responses and full markdown / code highlighting
+- **Image mode** — toggle the picture icon to generate any prompt
+- **Per-image actions:** Download · Copy URL · Open · New seed (regenerate)
+- **Per-message:** Copy · Retry
+- **Dark / light theme**, follows system preference, saved to localStorage
+- **Multi-turn history** persists across reloads
+- **Stop button** mid-stream
+- **Mobile-first**: safe-area insets, virtual keyboard handling, 16px input (no iOS zoom)
+
+## Deploy on Render (free)
+
+This repo includes a [`render.yaml`](./render.yaml) Blueprint. Static Site, free tier, no spin-down.
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/kingtechnopoga-netizen/Grokky)
 
-Or manually:
-
-1. Go to <https://dashboard.render.com/> → **New** → **Blueprint**
-2. Connect your GitHub and pick `kingtechnopoga-netizen/Grokky`
-3. Render reads `render.yaml`, creates the static site, and deploys it
-4. After ~30 seconds you get a live URL like `https://grokky.onrender.com`
-
-That's it — no build command, no env vars, no backend. Puter.js handles auth and billing in the user's browser.
-
-> Note: don't pick the **Web Service** option — this app is pure HTML/JS, so a Static Site is faster, free, and never sleeps.
+Or manually: <https://dashboard.render.com/> → **New** → **Blueprint** → pick this repo → **Apply**.
 
 ## Run it locally
 
-It's just one HTML file. Pick whichever is easiest:
-
-**Option 1 — open directly**
-
 ```bash
-# macOS
-open index.html
-# Linux
-xdg-open index.html
-# Windows
-start index.html
-```
-
-**Option 2 — serve locally** (recommended; some browsers restrict `file://` for fetch/auth popups)
-
-```bash
-# Python
+git clone https://github.com/kingtechnopoga-netizen/Grokky.git
+cd Grokky
 python3 -m http.server 8000
-
-# Node (no install)
-npx --yes serve .
+# open http://localhost:8000
 ```
 
-Then visit <http://localhost:8000>.
+Or just open `index.html` in a browser — both endpoints are CORS-enabled.
 
-The first time you send a message, Puter will open a popup asking you to sign in / approve. After that it just works.
+## Limits and trade-offs
 
-## Models available
+Being honest about what "free unlimited" actually means here:
 
-Edit the `<select>` in `index.html` or pass any of these to `model:`
+- **One chat model**: `openai-fast` (GPT-OSS 20B). It's a capable open model, but not GPT-5 or Claude. If you want premium models, you'll need a free Pollinations.ai account at <https://enter.pollinations.ai> for a key.
+- **Image model**: Pollinations routes to whatever's available (currently **Sana**). Quality is good for casual use, not photoreal-pro.
+- **No SLA**: Pollinations is community-funded. It's been reliable for years but it's not Google.
+- **Generous but not literally infinite**: They don't publish hard rate limits for the anonymous tier, but be reasonable.
 
-- `x-ai/grok-4.3`
-- `x-ai/grok-4-1-fast`
-- `x-ai/grok-3`
-- `x-ai/grok-3-mini`
-- `x-ai/grok-2`
-- `x-ai/grok-2-image` (image generation — different API: `puter.ai.txt2img`)
+## Want premium models without paying?
 
-See the full tutorial: <https://developer.puter.com/tutorials/free-unlimited-grok-api/>
+Other free options to swap in:
+
+- **Groq** — generous free tier, signup required, fast Llama / Mixtral
+- **Google Gemini** free tier — 1M tokens/day
+- **OpenRouter** — has free models (Qwen, Llama variants), signup required
+- **Self-host Ollama** — fully free, runs on your own machine
+
+I can rebuild the app on any of these — just say which.
+
+## Credits
+
+UI built with vanilla HTML/CSS/JS. Markdown via [marked](https://marked.js.org), sanitized with [DOMPurify](https://github.com/cure53/DOMPurify), syntax highlighting via [highlight.js](https://highlightjs.org). AI courtesy of [Pollinations.ai](https://pollinations.ai).
