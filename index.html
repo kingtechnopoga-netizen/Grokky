@@ -1,168 +1,993 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Grokky — Free Grok via Puter.js</title>
-  <!-- Puter.js: https://developer.puter.com/tutorials/free-unlimited-grok-api/ -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
+  <meta name="theme-color" content="#0b0b12" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+  <meta name="description" content="Grokky — chat with Grok in your browser. No API key, no backend." />
+  <title>Grokky</title>
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1' y1='0' y2='1'%3E%3Cstop offset='0' stop-color='%237c3aed'/%3E%3Cstop offset='1' stop-color='%23ec4899'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='url(%23g)'/%3E%3Ctext x='50%25' y='56%25' text-anchor='middle' font-family='system-ui,sans-serif' font-size='38' font-weight='800' fill='white'%3EG%3C/text%3E%3C/svg%3E" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Markdown + sanitization + code highlighting -->
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/styles/github-dark.min.css" id="hljs-theme">
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/lib/common.min.js"></script>
+
+  <!-- Puter.js — https://developer.puter.com/tutorials/free-unlimited-grok-api/ -->
   <script src="https://js.puter.com/v2/"></script>
+
   <style>
-    :root { color-scheme: light dark; }
-    * { box-sizing: border-box; }
+    /* ------------ Tokens ------------ */
+    :root {
+      --brand-1: #7c3aed;
+      --brand-2: #ec4899;
+      --brand-3: #06b6d4;
+      --radius: 14px;
+      --radius-sm: 10px;
+      --radius-lg: 22px;
+      --transition: 180ms cubic-bezier(.2,.7,.3,1);
+      --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    [data-theme="dark"] {
+      --bg: #0b0b12;
+      --bg-elev: #11121b;
+      --surface: rgba(255,255,255,0.04);
+      --surface-2: rgba(255,255,255,0.07);
+      --border: rgba(255,255,255,0.08);
+      --border-strong: rgba(255,255,255,0.14);
+      --text: #ececf1;
+      --text-dim: #9ca3af;
+      --text-faint: #6b7280;
+      --user-bg: linear-gradient(135deg, var(--brand-1), var(--brand-2));
+      --code-bg: rgba(0,0,0,0.35);
+      --shadow: 0 10px 30px -10px rgba(0,0,0,0.5);
+    }
+    [data-theme="light"] {
+      --bg: #fafafa;
+      --bg-elev: #ffffff;
+      --surface: rgba(0,0,0,0.03);
+      --surface-2: rgba(0,0,0,0.05);
+      --border: rgba(0,0,0,0.08);
+      --border-strong: rgba(0,0,0,0.16);
+      --text: #0f172a;
+      --text-dim: #475569;
+      --text-faint: #94a3b8;
+      --user-bg: linear-gradient(135deg, var(--brand-1), var(--brand-2));
+      --code-bg: rgba(0,0,0,0.04);
+      --shadow: 0 10px 30px -12px rgba(0,0,0,0.18);
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; }
     body {
       margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #0b0d10;
-      color: #e7e9ea;
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      overflow: hidden;
+      overscroll-behavior: none;
+    }
+
+    /* Background ambience */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: -20%;
+      z-index: -1;
+      background:
+        radial-gradient(40rem 30rem at 15% 10%, rgba(124,58,237,0.18), transparent 60%),
+        radial-gradient(35rem 25rem at 85% 90%, rgba(236,72,153,0.14), transparent 60%),
+        radial-gradient(30rem 25rem at 50% 50%, rgba(6,182,212,0.08), transparent 60%);
+      filter: blur(40px);
+      pointer-events: none;
+    }
+    [data-theme="light"] body::before { opacity: 0.55; }
+
+    /* ------------ Layout ------------ */
+    .app {
       display: flex;
       flex-direction: column;
-      height: 100vh;
+      height: 100dvh;
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 0 max(env(safe-area-inset-left), 12px) 0 max(env(safe-area-inset-right), 12px);
     }
+
+    /* ------------ Header ------------ */
     header {
-      padding: 12px 20px;
-      border-bottom: 1px solid #20262d;
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
+      padding: 14px 4px;
+      padding-top: max(env(safe-area-inset-top), 14px);
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      background: linear-gradient(to bottom, var(--bg) 70%, transparent);
     }
-    header h1 { font-size: 16px; margin: 0; font-weight: 600; }
-    header select {
-      margin-left: auto;
-      background: #161a1f;
-      color: #e7e9ea;
-      border: 1px solid #2a313a;
-      border-radius: 6px;
-      padding: 6px 10px;
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 17px;
+      letter-spacing: -0.01em;
+    }
+    .logo {
+      width: 32px;
+      height: 32px;
+      border-radius: 9px;
+      background: linear-gradient(135deg, var(--brand-1), var(--brand-2));
+      display: grid;
+      place-items: center;
+      color: white;
+      font-weight: 800;
+      font-size: 17px;
+      box-shadow: 0 4px 14px -2px rgba(124,58,237,0.5);
+    }
+    .pill {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: var(--surface-2);
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+      font-weight: 500;
+    }
+    .actions { margin-left: auto; display: flex; gap: 6px; }
+    .icon-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      transition: all var(--transition);
+    }
+    .icon-btn:hover { background: var(--surface-2); border-color: var(--border-strong); }
+    .icon-btn:active { transform: scale(0.94); }
+    .icon-btn svg { width: 18px; height: 18px; }
+
+    /* Model picker */
+    .model-select {
+      position: relative;
+    }
+    .model-select select {
+      appearance: none;
+      -webkit-appearance: none;
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 32px 8px 12px;
+      font: inherit;
       font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--transition);
     }
+    .model-select select:hover { background: var(--surface-2); border-color: var(--border-strong); }
+    .model-select::after {
+      content: '';
+      position: absolute;
+      right: 11px;
+      top: 50%;
+      width: 8px; height: 8px;
+      border-right: 2px solid var(--text-dim);
+      border-bottom: 2px solid var(--text-dim);
+      transform: translateY(-70%) rotate(45deg);
+      pointer-events: none;
+    }
+
+    /* ------------ Messages ------------ */
     #log {
       flex: 1;
       overflow-y: auto;
-      padding: 20px;
-      max-width: 860px;
-      width: 100%;
-      margin: 0 auto;
+      padding: 8px 4px 24px;
+      scroll-behavior: smooth;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-strong) transparent;
     }
+    #log::-webkit-scrollbar { width: 8px; }
+    #log::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
+
+    .empty {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 20px;
+      gap: 18px;
+    }
+    .empty .logo {
+      width: 64px;
+      height: 64px;
+      font-size: 32px;
+      border-radius: 18px;
+      box-shadow: 0 14px 40px -10px rgba(124,58,237,0.6);
+    }
+    .empty h2 {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin: 0;
+      background: linear-gradient(135deg, var(--brand-1), var(--brand-2), var(--brand-3));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .empty p { color: var(--text-dim); margin: 0; max-width: 360px; line-height: 1.5; }
+    .suggestions {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 8px;
+      width: 100%;
+      max-width: 560px;
+      margin-top: 10px;
+    }
+    .suggestion {
+      text-align: left;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      font: inherit;
+      font-size: 13px;
+      line-height: 1.4;
+      transition: all var(--transition);
+    }
+    .suggestion:hover { background: var(--surface-2); border-color: var(--border-strong); transform: translateY(-1px); }
+    .suggestion strong { display: block; margin-bottom: 2px; font-weight: 600; }
+    .suggestion span { color: var(--text-dim); }
+
     .msg {
+      max-width: 100%;
+      margin: 0 0 14px;
+      animation: fade-in 200ms ease-out;
+    }
+    @keyframes fade-in {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .msg .meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--text-faint);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 600;
+    }
+    .msg.user .meta { justify-content: flex-end; }
+    .msg.user .bubble {
+      margin-left: auto;
+      background: var(--user-bg);
+      color: white;
+      border-bottom-right-radius: 6px;
+      max-width: 85%;
+      box-shadow: 0 6px 24px -8px rgba(124,58,237,0.5);
+    }
+    .msg.assistant .bubble {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 6px;
+      max-width: 100%;
+    }
+    .msg.error .bubble {
+      background: rgba(239,68,68,0.08);
+      border: 1px solid rgba(239,68,68,0.3);
+      color: #fca5a5;
+    }
+    .bubble {
       padding: 12px 16px;
+      border-radius: var(--radius-lg);
+      width: fit-content;
+      word-wrap: break-word;
+      line-height: 1.55;
+      font-size: 15px;
+    }
+    .bubble p { margin: 0 0 10px; }
+    .bubble p:last-child { margin-bottom: 0; }
+    .bubble pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
       border-radius: 10px;
-      margin-bottom: 12px;
-      white-space: pre-wrap;
+      padding: 12px;
+      overflow-x: auto;
+      margin: 10px 0;
+      position: relative;
+      font-family: var(--mono);
+      font-size: 13px;
       line-height: 1.5;
     }
-    .msg.user      { background: #1d4ed8; color: white; align-self: flex-end; max-width: 80%; margin-left: auto; }
-    .msg.assistant { background: #161a1f; border: 1px solid #2a313a; }
-    .msg.error     { background: #3a1414; border: 1px solid #7f1d1d; color: #fecaca; }
-    .role { font-size: 11px; opacity: 0.6; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
-    form {
-      display: flex;
-      gap: 8px;
-      padding: 12px 20px;
-      border-top: 1px solid #20262d;
-      max-width: 860px;
-      width: 100%;
-      margin: 0 auto;
+    .bubble code:not(pre code) {
+      background: var(--code-bg);
+      padding: 1px 6px;
+      border-radius: 5px;
+      font-family: var(--mono);
+      font-size: 0.88em;
+      border: 1px solid var(--border);
     }
-    input[type=text] {
-      flex: 1;
-      background: #161a1f;
-      color: #e7e9ea;
-      border: 1px solid #2a313a;
-      border-radius: 8px;
-      padding: 12px 14px;
-      font-size: 14px;
+    .msg.user .bubble code:not(pre code) {
+      background: rgba(255,255,255,0.18);
+      border-color: rgba(255,255,255,0.2);
     }
-    button {
-      background: #1d4ed8;
-      color: white;
-      border: 0;
-      border-radius: 8px;
-      padding: 0 18px;
-      font-size: 14px;
-      font-weight: 600;
+    .bubble pre code { background: none; border: 0; padding: 0; }
+    .bubble ul, .bubble ol { padding-left: 22px; margin: 8px 0; }
+    .bubble li { margin: 3px 0; }
+    .bubble h1, .bubble h2, .bubble h3 { margin: 14px 0 8px; line-height: 1.3; }
+    .bubble h1 { font-size: 20px; }
+    .bubble h2 { font-size: 17px; }
+    .bubble h3 { font-size: 15px; }
+    .bubble a { color: var(--brand-3); text-decoration: underline; text-underline-offset: 2px; }
+    .msg.user .bubble a { color: white; }
+    .bubble blockquote {
+      border-left: 3px solid var(--brand-1);
+      padding: 4px 0 4px 12px;
+      color: var(--text-dim);
+      margin: 8px 0;
+    }
+    .bubble table { border-collapse: collapse; margin: 10px 0; font-size: 14px; }
+    .bubble th, .bubble td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
+
+    /* Code copy button */
+    .code-wrap { position: relative; }
+    .copy-code {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      padding: 4px 9px;
+      font-size: 11px;
+      font-weight: 500;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg-elev);
+      color: var(--text-dim);
       cursor: pointer;
+      opacity: 0;
+      transition: all var(--transition);
     }
-    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .code-wrap:hover .copy-code, .copy-code:focus-visible { opacity: 1; }
+    .copy-code:hover { color: var(--text); border-color: var(--border-strong); }
+    .copy-code.ok { color: #34d399; border-color: rgba(52,211,153,0.4); }
+
+    /* Bubble actions (under assistant messages) */
+    .msg-actions {
+      display: flex;
+      gap: 4px;
+      margin-top: 6px;
+      opacity: 0;
+      transition: opacity var(--transition);
+    }
+    .msg:hover .msg-actions, .msg-actions:focus-within { opacity: 1; }
+    @media (hover: none) { .msg-actions { opacity: 1; } }
+    .msg-action {
+      padding: 5px 9px;
+      font-size: 12px;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: all var(--transition);
+      font-family: inherit;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .msg-action:hover { color: var(--text); background: var(--surface); }
+    .msg-action.ok { color: #34d399; }
+    .msg-action svg { width: 12px; height: 12px; }
+
+    /* Streaming caret */
+    .caret {
+      display: inline-block;
+      width: 7px;
+      height: 16px;
+      vertical-align: text-bottom;
+      background: currentColor;
+      margin-left: 2px;
+      animation: blink 1s steps(1) infinite;
+      border-radius: 1px;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    /* Thinking dots */
+    .thinking {
+      display: inline-flex;
+      gap: 4px;
+      padding: 4px 0;
+    }
+    .thinking span {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--text-dim);
+      animation: bounce 1.2s infinite ease-in-out;
+    }
+    .thinking span:nth-child(2) { animation-delay: 0.15s; }
+    .thinking span:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes bounce {
+      0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+      30% { transform: translateY(-5px); opacity: 1; }
+    }
+
+    /* ------------ Composer ------------ */
+    .composer-wrap {
+      position: sticky;
+      bottom: 0;
+      padding: 10px 0 max(env(safe-area-inset-bottom), 12px);
+      background: linear-gradient(to top, var(--bg) 70%, transparent);
+    }
+    .composer {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      padding: 8px 8px 8px 14px;
+      background: var(--bg-elev);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      transition: border-color var(--transition);
+    }
+    .composer:focus-within { border-color: var(--brand-1); box-shadow: 0 0 0 3px rgba(124,58,237,0.15), var(--shadow); }
+    #input {
+      flex: 1;
+      background: transparent;
+      border: 0;
+      color: var(--text);
+      font: inherit;
+      font-size: 16px; /* prevents iOS auto-zoom */
+      line-height: 1.5;
+      resize: none;
+      outline: none;
+      max-height: 200px;
+      padding: 8px 0;
+      overflow-y: auto;
+      scrollbar-width: thin;
+    }
+    #input::placeholder { color: var(--text-faint); }
+    .send-btn {
+      width: 40px;
+      height: 40px;
+      flex-shrink: 0;
+      border-radius: 12px;
+      border: 0;
+      background: linear-gradient(135deg, var(--brand-1), var(--brand-2));
+      color: white;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      transition: all var(--transition);
+      box-shadow: 0 4px 14px -2px rgba(124,58,237,0.5);
+    }
+    .send-btn:hover:not(:disabled) { transform: translateY(-1px); }
+    .send-btn:active:not(:disabled) { transform: scale(0.94); }
+    .send-btn:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+    .send-btn svg { width: 18px; height: 18px; }
+    .send-btn.stop { background: #ef4444; box-shadow: 0 4px 14px -2px rgba(239,68,68,0.5); }
+    .footer-hint {
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-faint);
+      margin-top: 6px;
+    }
+    .footer-hint a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+    .kbd {
+      font-family: var(--mono);
+      font-size: 10px;
+      padding: 1px 5px;
+      border-radius: 4px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 90px;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--bg-elev);
+      color: var(--text);
+      border: 1px solid var(--border-strong);
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-size: 13px;
+      box-shadow: var(--shadow);
+      opacity: 0;
+      pointer-events: none;
+      transition: all var(--transition);
+      z-index: 50;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ------------ Responsive ------------ */
+    @media (max-width: 640px) {
+      header { padding: 10px 2px; }
+      .brand { font-size: 16px; }
+      .logo { width: 28px; height: 28px; font-size: 15px; border-radius: 8px; }
+      .pill { display: none; }
+      .empty h2 { font-size: 24px; }
+      .bubble { font-size: 15px; padding: 11px 14px; }
+      .icon-btn { width: 36px; height: 36px; }
+      .model-select select { padding: 7px 28px 7px 10px; font-size: 12px; max-width: 130px; text-overflow: ellipsis; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    }
   </style>
 </head>
 <body>
-  <header>
-    <h1>Grokky</h1>
-    <select id="model">
-      <option value="x-ai/grok-4.3">grok-4.3</option>
-      <option value="x-ai/grok-4-1-fast">grok-4-1-fast</option>
-      <option value="x-ai/grok-3">grok-3</option>
-      <option value="x-ai/grok-3-mini">grok-3-mini</option>
-      <option value="x-ai/grok-2">grok-2</option>
-    </select>
-  </header>
+  <div class="app">
+    <header>
+      <div class="brand">
+        <div class="logo">G</div>
+        <span>Grokky</span>
+        <span class="pill" id="status-pill">via Puter.js</span>
+      </div>
+      <div class="actions">
+        <div class="model-select">
+          <select id="model" aria-label="Choose model">
+            <option value="x-ai/grok-4.3">Grok 4.3</option>
+            <option value="x-ai/grok-4-1-fast">Grok 4.1 Fast</option>
+            <option value="x-ai/grok-3">Grok 3</option>
+            <option value="x-ai/grok-3-mini">Grok 3 Mini</option>
+            <option value="x-ai/grok-2">Grok 2</option>
+          </select>
+        </div>
+        <button class="icon-btn" id="theme-btn" aria-label="Toggle theme" title="Toggle theme">
+          <svg id="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+        </button>
+        <button class="icon-btn" id="clear-btn" aria-label="New chat" title="New chat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+      </div>
+    </header>
 
-  <div id="log"></div>
+    <div id="log" role="log" aria-live="polite" aria-atomic="false"></div>
 
-  <form id="form">
-    <input id="input" type="text" placeholder="Ask Grok anything…" autocomplete="off" autofocus />
-    <button id="send" type="submit">Send</button>
-  </form>
+    <div class="composer-wrap">
+      <form class="composer" id="form">
+        <textarea
+          id="input"
+          rows="1"
+          placeholder="Message Grok…"
+          autocomplete="off"
+          autocapitalize="sentences"
+          spellcheck="true"
+          enterkeyhint="send"
+          aria-label="Message"
+        ></textarea>
+        <button class="send-btn" id="send" type="submit" aria-label="Send">
+          <svg id="send-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12l14-7-7 14-2-5-5-2z"/>
+          </svg>
+        </button>
+      </form>
+      <div class="footer-hint">
+        <span class="kbd">Enter</span> to send · <span class="kbd">Shift+Enter</span> newline · powered by <a href="https://puter.com" target="_blank" rel="noopener">Puter.js</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
 
   <script>
-    const log    = document.getElementById('log');
-    const form   = document.getElementById('form');
-    const input  = document.getElementById('input');
-    const send   = document.getElementById('send');
+    /* ============== State ============== */
+    const STORAGE_KEYS = {
+      history: 'grokky.history.v1',
+      theme:   'grokky.theme.v1',
+      model:   'grokky.model.v1',
+    };
+
+    const log     = document.getElementById('log');
+    const form    = document.getElementById('form');
+    const input   = document.getElementById('input');
+    const sendBtn = document.getElementById('send');
+    const sendIcon = document.getElementById('send-icon');
     const modelEl = document.getElementById('model');
+    const clearBtn = document.getElementById('clear-btn');
+    const themeBtn = document.getElementById('theme-btn');
+    const toastEl = document.getElementById('toast');
 
-    // Multi-turn conversation history (Example 3 from the tutorial)
-    const history = [];
+    let history = [];
+    let streaming = null; // { abort: () => void }
 
-    function addMsg(role, text = '') {
-      const el = document.createElement('div');
-      el.className = `msg ${role}`;
-      el.innerHTML = `<div class="role">${role}</div><div class="body"></div>`;
-      el.querySelector('.body').textContent = text;
-      log.appendChild(el);
-      log.scrollTop = log.scrollHeight;
-      return el.querySelector('.body');
+    /* ============== Markdown ============== */
+    marked.setOptions({
+      breaks: true,
+      gfm: true,
+    });
+
+    function renderMarkdown(md) {
+      const html = marked.parse(md || '');
+      const clean = DOMPurify.sanitize(html, { ADD_ATTR: ['target', 'rel'] });
+      // wrap pre in code-wrap for copy button
+      const tpl = document.createElement('template');
+      tpl.innerHTML = clean.trim();
+      tpl.content.querySelectorAll('pre').forEach(pre => {
+        const wrap = document.createElement('div');
+        wrap.className = 'code-wrap';
+        pre.parentNode.insertBefore(wrap, pre);
+        wrap.appendChild(pre);
+
+        const btn = document.createElement('button');
+        btn.className = 'copy-code';
+        btn.type = 'button';
+        btn.textContent = 'Copy';
+        btn.addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(pre.innerText);
+            btn.textContent = 'Copied';
+            btn.classList.add('ok');
+            setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('ok'); }, 1500);
+          } catch { showToast('Copy failed'); }
+        });
+        wrap.appendChild(btn);
+
+        // syntax highlight
+        const code = pre.querySelector('code');
+        if (code && window.hljs) {
+          try { window.hljs.highlightElement(code); } catch {}
+        }
+      });
+      // ensure links open safely
+      tpl.content.querySelectorAll('a').forEach(a => {
+        a.setAttribute('target', '_blank');
+        a.setAttribute('rel', 'noopener noreferrer');
+      });
+      return tpl.content;
     }
 
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const text = input.value.trim();
-      if (!text) return;
+    /* ============== Toast ============== */
+    let toastTimer;
+    function showToast(text) {
+      toastEl.textContent = text;
+      toastEl.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2200);
+    }
 
-      input.value = '';
-      send.disabled = true;
-      addMsg('user', text);
-      history.push({ role: 'user', content: text });
+    /* ============== Theme ============== */
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      const hljsLink = document.getElementById('hljs-theme');
+      hljsLink.href = theme === 'light'
+        ? 'https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/styles/github.min.css'
+        : 'https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/styles/github-dark.min.css';
+      localStorage.setItem(STORAGE_KEYS.theme, theme);
+    }
+    themeBtn.addEventListener('click', () => {
+      const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      applyTheme(next);
+    });
+    (() => {
+      const saved = localStorage.getItem(STORAGE_KEYS.theme);
+      if (saved) applyTheme(saved);
+      else if (window.matchMedia?.('(prefers-color-scheme: light)').matches) applyTheme('light');
+    })();
 
-      const out = addMsg('assistant', '');
+    /* ============== Model persistence ============== */
+    (() => {
+      const saved = localStorage.getItem(STORAGE_KEYS.model);
+      if (saved) modelEl.value = saved;
+      modelEl.addEventListener('change', () => localStorage.setItem(STORAGE_KEYS.model, modelEl.value));
+    })();
+
+    /* ============== Render ============== */
+    const SUGGESTIONS = [
+      { title: 'Explain a concept',      sub: 'Quantum computing — like I\'m 12' },
+      { title: 'Write code',              sub: 'Debounce in TypeScript with tests' },
+      { title: 'Brainstorm',              sub: '5 startup ideas that ship in a weekend' },
+      { title: 'Roast my plan',           sub: 'Tell me what could go wrong' },
+    ];
+
+    function renderEmpty() {
+      log.innerHTML = '';
+      const empty = document.createElement('div');
+      empty.className = 'empty';
+      empty.innerHTML = `
+        <div class="logo">G</div>
+        <h2>How can I help today?</h2>
+        <p>Chat with Grok in your browser. No API key, no signup — Puter handles it.</p>
+        <div class="suggestions"></div>
+      `;
+      const grid = empty.querySelector('.suggestions');
+      SUGGESTIONS.forEach(s => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'suggestion';
+        b.innerHTML = `<strong>${s.title}</strong><span>${s.sub}</span>`;
+        b.addEventListener('click', () => {
+          input.value = `${s.title}: ${s.sub}`;
+          autosize();
+          input.focus();
+        });
+        grid.appendChild(b);
+      });
+      log.appendChild(empty);
+    }
+
+    function addMsg(role, content = '') {
+      // remove empty state on first message
+      const empty = log.querySelector('.empty');
+      if (empty) empty.remove();
+
+      const wrap = document.createElement('div');
+      wrap.className = `msg ${role}`;
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.textContent = role === 'user' ? 'You' : (role === 'error' ? 'Error' : 'Grok');
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+
+      if (role === 'user') {
+        bubble.textContent = content;
+      } else if (role === 'assistant') {
+        if (content) bubble.appendChild(renderMarkdown(content));
+        else bubble.innerHTML = '<div class="thinking"><span></span><span></span><span></span></div>';
+      } else {
+        bubble.textContent = content;
+      }
+
+      wrap.appendChild(meta);
+      wrap.appendChild(bubble);
+
+      if (role === 'assistant') {
+        const actions = document.createElement('div');
+        actions.className = 'msg-actions';
+        actions.innerHTML = `
+          <button class="msg-action" data-act="copy" title="Copy">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+            Copy
+          </button>
+          <button class="msg-action" data-act="regenerate" title="Regenerate">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+            Retry
+          </button>
+        `;
+        wrap.appendChild(actions);
+      }
+
+      log.appendChild(wrap);
+      scrollToBottom();
+      return bubble;
+    }
+
+    function scrollToBottom(smooth = true) {
+      log.scrollTo({ top: log.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
+    }
+
+    /* ============== History persistence ============== */
+    function saveHistory() {
+      try { localStorage.setItem(STORAGE_KEYS.history, JSON.stringify(history)); } catch {}
+    }
+    function loadHistory() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEYS.history);
+        if (!raw) return [];
+        return JSON.parse(raw);
+      } catch { return []; }
+    }
+    function rerenderAll() {
+      log.innerHTML = '';
+      if (!history.length) { renderEmpty(); return; }
+      for (const m of history) {
+        if (m.role === 'user' || m.role === 'assistant') addMsg(m.role, m.content);
+      }
+      requestAnimationFrame(() => scrollToBottom(false));
+    }
+
+    /* ============== Send / stream ============== */
+    function setStreamingState(on) {
+      if (on) {
+        sendBtn.classList.add('stop');
+        sendBtn.setAttribute('aria-label', 'Stop');
+        sendIcon.innerHTML = '<rect x="6" y="6" width="12" height="12" rx="1.5"/>';
+      } else {
+        sendBtn.classList.remove('stop');
+        sendBtn.setAttribute('aria-label', 'Send');
+        sendIcon.innerHTML = '<path d="M5 12l14-7-7 14-2-5-5-2z"/>';
+      }
+    }
+
+    async function sendMessage(text) {
+      const trimmed = text.trim();
+      if (!trimmed) return;
+
+      history.push({ role: 'user', content: trimmed });
+      addMsg('user', trimmed);
+      saveHistory();
+
+      const bubble = addMsg('assistant', '');
       let full = '';
+      let stopped = false;
+      streaming = { abort: () => { stopped = true; } };
+      setStreamingState(true);
 
       try {
-        // Streaming chat — Example 2 from the tutorial
+        if (!window.puter || !puter.ai?.chat) {
+          throw new Error('Puter.js failed to load. Check your network and refresh.');
+        }
         const response = await puter.ai.chat(history, {
           model: modelEl.value,
           stream: true,
         });
 
         for await (const part of response) {
-          if (part?.text) {
-            full += part.text;
-            out.textContent = full;
-            log.scrollTop = log.scrollHeight;
-          }
+          if (stopped) break;
+          const chunk = part?.text ?? '';
+          if (!chunk) continue;
+          full += chunk;
+          bubble.innerHTML = '';
+          bubble.appendChild(renderMarkdown(full));
+          // streaming caret
+          const caret = document.createElement('span');
+          caret.className = 'caret';
+          bubble.appendChild(caret);
+          // only auto-scroll if user is already at the bottom
+          if (isAtBottom()) scrollToBottom(false);
         }
 
+        // final render without caret
+        bubble.innerHTML = '';
+        bubble.appendChild(renderMarkdown(full || '*(no response)*'));
+
         history.push({ role: 'assistant', content: full });
+        saveHistory();
       } catch (err) {
         console.error(err);
-        out.parentElement.classList.remove('assistant');
-        out.parentElement.classList.add('error');
-        out.textContent = `Error: ${err?.message || err}`;
+        bubble.parentElement.classList.remove('assistant');
+        bubble.parentElement.classList.add('error');
+        bubble.textContent = `${err?.message || err}`;
+        // pop the user message so retry works cleanly
+        if (history[history.length - 1]?.role === 'user') {
+          history.pop();
+          saveHistory();
+        }
       } finally {
-        send.disabled = false;
+        streaming = null;
+        setStreamingState(false);
         input.focus();
       }
+    }
+
+    function isAtBottom() {
+      return log.scrollHeight - log.scrollTop - log.clientHeight < 80;
+    }
+
+    /* ============== Form / input ============== */
+    function autosize() {
+      input.style.height = 'auto';
+      input.style.height = Math.min(input.scrollHeight, 200) + 'px';
+    }
+    input.addEventListener('input', autosize);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+        e.preventDefault();
+        form.requestSubmit();
+      }
     });
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (streaming) {
+        streaming.abort();
+        return;
+      }
+      const text = input.value;
+      if (!text.trim()) return;
+      input.value = '';
+      autosize();
+      sendMessage(text);
+    });
+
+    /* Message-level actions: copy / regenerate */
+    log.addEventListener('click', async (e) => {
+      const btn = e.target.closest('.msg-action');
+      if (!btn) return;
+      const msgEl = btn.closest('.msg');
+      const idx = [...log.querySelectorAll('.msg')].indexOf(msgEl);
+      if (idx < 0) return;
+
+      // Map DOM index → history index (DOM index includes any inserted error msgs not in history; safer: count assistants/users in DOM)
+      // Since we only push assistant after success, the DOM message at idx corresponds to history[idx] in normal flow.
+      const act = btn.dataset.act;
+
+      if (act === 'copy') {
+        const text = history[idx]?.content ?? msgEl.querySelector('.bubble')?.innerText ?? '';
+        try {
+          await navigator.clipboard.writeText(text);
+          btn.classList.add('ok');
+          btn.lastChild.textContent = ' Copied';
+          setTimeout(() => { btn.classList.remove('ok'); btn.lastChild.textContent = ' Copy'; }, 1500);
+        } catch { showToast('Copy failed'); }
+      } else if (act === 'regenerate') {
+        // Drop this assistant turn (DOM + history), then stream a fresh one
+        // using the current history (which still ends with the user message).
+        if (history[idx]?.role !== 'assistant') return;
+        history.splice(idx, 1);
+        msgEl.remove();
+        saveHistory();
+        if (history.some(m => m.role === 'user')) await regenerateLast();
+      }
+    });
+
+    async function regenerateLast() {
+      if (streaming) return;
+      const bubble = addMsg('assistant', '');
+      let full = '';
+      let stopped = false;
+      streaming = { abort: () => { stopped = true; } };
+      setStreamingState(true);
+      try {
+        const response = await puter.ai.chat(history, { model: modelEl.value, stream: true });
+        for await (const part of response) {
+          if (stopped) break;
+          const chunk = part?.text ?? '';
+          if (!chunk) continue;
+          full += chunk;
+          bubble.innerHTML = '';
+          bubble.appendChild(renderMarkdown(full));
+          const caret = document.createElement('span'); caret.className = 'caret';
+          bubble.appendChild(caret);
+          if (isAtBottom()) scrollToBottom(false);
+        }
+        bubble.innerHTML = '';
+        bubble.appendChild(renderMarkdown(full || '*(no response)*'));
+        history.push({ role: 'assistant', content: full });
+        saveHistory();
+      } catch (err) {
+        bubble.parentElement.classList.remove('assistant');
+        bubble.parentElement.classList.add('error');
+        bubble.textContent = err?.message || String(err);
+      } finally {
+        streaming = null;
+        setStreamingState(false);
+      }
+    }
+
+    /* ============== Clear / new chat ============== */
+    clearBtn.addEventListener('click', () => {
+      if (streaming) streaming.abort();
+      if (history.length && !confirm('Start a new chat? This clears the current conversation.')) return;
+      history = [];
+      saveHistory();
+      rerenderAll();
+      input.focus();
+    });
+
+    /* ============== Boot ============== */
+    history = loadHistory();
+    rerenderAll();
+    autosize();
+    input.focus();
+
+    // Resize log on virtual keyboard show/hide (mobile)
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', () => {
+        if (isAtBottom()) scrollToBottom(false);
+      });
+    }
   </script>
 </body>
 </html>
