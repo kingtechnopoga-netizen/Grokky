@@ -483,6 +483,74 @@
     .send-btn:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
     .send-btn svg { width: 18px; height: 18px; }
     .send-btn.stop { background: #ef4444; box-shadow: 0 4px 14px -2px rgba(239,68,68,0.5); }
+
+    /* Image-mode toggle button (left of textarea) */
+    .mode-btn {
+      width: 36px;
+      height: 36px;
+      flex-shrink: 0;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-dim);
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      transition: all var(--transition);
+      align-self: flex-end;
+      margin-bottom: 2px;
+    }
+    .mode-btn:hover { background: var(--surface-2); color: var(--text); }
+    .mode-btn[aria-pressed="true"] {
+      background: linear-gradient(135deg, rgba(124,58,237,0.18), rgba(236,72,153,0.18));
+      border-color: var(--brand-1);
+      color: var(--brand-2);
+    }
+    .mode-btn svg { width: 18px; height: 18px; }
+
+    /* Composer image-mode visual hint */
+    .composer.image-mode { border-color: var(--brand-2); }
+    .composer.image-mode:focus-within { box-shadow: 0 0 0 3px rgba(236,72,153,0.18), var(--shadow); }
+
+    /* Generated image */
+    .gen-image-wrap { display: inline-block; max-width: 100%; }
+    .gen-image {
+      display: block;
+      max-width: 100%;
+      max-height: 480px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--code-bg);
+    }
+    .gen-image-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+    .gen-image-actions a, .gen-image-actions button {
+      padding: 6px 10px;
+      font-size: 12px;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-family: inherit;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all var(--transition);
+    }
+    .gen-image-actions a:hover, .gen-image-actions button:hover {
+      color: var(--text);
+      background: var(--surface);
+      border-color: var(--border-strong);
+    }
+    .gen-image-actions svg { width: 12px; height: 12px; }
+    .gen-image-actions .ok { color: #34d399; }
+    .gen-caption { color: var(--text-dim); font-size: 13px; margin-top: 8px; font-style: italic; }
     .footer-hint {
       text-align: center;
       font-size: 11px;
@@ -529,6 +597,8 @@
       .bubble { font-size: 15px; padding: 11px 14px; }
       .icon-btn { width: 36px; height: 36px; }
       .model-select select { padding: 7px 28px 7px 10px; font-size: 12px; max-width: 130px; text-overflow: ellipsis; }
+      .mode-btn { width: 34px; height: 34px; }
+      .gen-image { max-height: 360px; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -554,6 +624,15 @@
             <option value="x-ai/grok-2">Grok 2</option>
           </select>
         </div>
+        <div class="model-select" id="image-model-wrap" hidden>
+          <select id="image-model" aria-label="Choose image model">
+            <option value="xai|grok-2-image">Grok 2 Image</option>
+            <option value="openai-image-generation|gpt-image-1-mini">GPT Image Mini</option>
+            <option value="openai-image-generation|gpt-image-1">GPT Image</option>
+            <option value="openai-image-generation|dall-e-3">DALL·E 3</option>
+            <option value="gemini|imagen-4">Imagen 4</option>
+          </select>
+        </div>
         <button class="icon-btn" id="theme-btn" aria-label="Toggle theme" title="Toggle theme">
           <svg id="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
         </button>
@@ -567,6 +646,9 @@
 
     <div class="composer-wrap">
       <form class="composer" id="form">
+        <button type="button" class="mode-btn" id="mode-btn" aria-pressed="false" aria-label="Toggle image mode" title="Toggle image mode">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>
+        </button>
         <textarea
           id="input"
           rows="1"
@@ -583,7 +665,7 @@
           </svg>
         </button>
       </form>
-      <div class="footer-hint">
+      <div class="footer-hint" id="footer-hint">
         <span class="kbd">Enter</span> to send · <span class="kbd">Shift+Enter</span> newline · powered by <a href="https://puter.com" target="_blank" rel="noopener">Puter.js</a>
       </div>
     </div>
@@ -597,6 +679,8 @@
       history: 'grokky.history.v1',
       theme:   'grokky.theme.v1',
       model:   'grokky.model.v1',
+      imageModel: 'grokky.imageModel.v1',
+      mode:    'grokky.mode.v1',
     };
 
     const log     = document.getElementById('log');
@@ -605,12 +689,18 @@
     const sendBtn = document.getElementById('send');
     const sendIcon = document.getElementById('send-icon');
     const modelEl = document.getElementById('model');
+    const imageModelEl = document.getElementById('image-model');
+    const imageModelWrap = document.getElementById('image-model-wrap');
     const clearBtn = document.getElementById('clear-btn');
     const themeBtn = document.getElementById('theme-btn');
+    const modeBtn = document.getElementById('mode-btn');
+    const composer = document.querySelector('.composer');
+    const footerHint = document.getElementById('footer-hint');
     const toastEl = document.getElementById('toast');
 
     let history = [];
     let streaming = null; // { abort: () => void }
+    let mode = 'chat'; // 'chat' | 'image'
 
     /* ============== Markdown ============== */
     marked.setOptions({
@@ -691,6 +781,31 @@
       const saved = localStorage.getItem(STORAGE_KEYS.model);
       if (saved) modelEl.value = saved;
       modelEl.addEventListener('change', () => localStorage.setItem(STORAGE_KEYS.model, modelEl.value));
+
+      const savedImg = localStorage.getItem(STORAGE_KEYS.imageModel);
+      if (savedImg) imageModelEl.value = savedImg;
+      imageModelEl.addEventListener('change', () => localStorage.setItem(STORAGE_KEYS.imageModel, imageModelEl.value));
+    })();
+
+    /* ============== Mode (chat ↔ image) ============== */
+    function applyMode(next) {
+      mode = next;
+      const isImage = mode === 'image';
+      modeBtn.setAttribute('aria-pressed', String(isImage));
+      composer.classList.toggle('image-mode', isImage);
+      modelEl.parentElement.hidden = isImage;
+      imageModelWrap.hidden = !isImage;
+      input.placeholder = isImage ? 'Describe an image to generate…' : 'Message Grok…';
+      footerHint.innerHTML = isImage
+        ? 'Image mode · <span class="kbd">Enter</span> to generate · powered by <a href="https://puter.com" target="_blank" rel="noopener">Puter.js</a>'
+        : '<span class="kbd">Enter</span> to send · <span class="kbd">Shift+Enter</span> newline · powered by <a href="https://puter.com" target="_blank" rel="noopener">Puter.js</a>';
+      localStorage.setItem(STORAGE_KEYS.mode, mode);
+    }
+    modeBtn.addEventListener('click', () => applyMode(mode === 'image' ? 'chat' : 'image'));
+    (() => {
+      const saved = localStorage.getItem(STORAGE_KEYS.mode);
+      if (saved === 'image') applyMode('image');
+      else applyMode('chat');
     })();
 
     /* ============== Render ============== */
@@ -698,7 +813,7 @@
       { title: 'Explain a concept',      sub: 'Quantum computing — like I\'m 12' },
       { title: 'Write code',              sub: 'Debounce in TypeScript with tests' },
       { title: 'Brainstorm',              sub: '5 startup ideas that ship in a weekend' },
-      { title: 'Roast my plan',           sub: 'Tell me what could go wrong' },
+      { title: 'Generate an image',       sub: 'Tap the image icon, then describe it', mode: 'image', prompt: 'A neon cyberpunk cat coding on a laptop, vaporwave palette' },
     ];
 
     function renderEmpty() {
@@ -718,7 +833,8 @@
         b.className = 'suggestion';
         b.innerHTML = `<strong>${s.title}</strong><span>${s.sub}</span>`;
         b.addEventListener('click', () => {
-          input.value = `${s.title}: ${s.sub}`;
+          if (s.mode) applyMode(s.mode);
+          input.value = s.prompt || `${s.title}: ${s.sub}`;
           autosize();
           input.focus();
         });
@@ -898,8 +1014,137 @@
       if (!text.trim()) return;
       input.value = '';
       autosize();
-      sendMessage(text);
+      if (mode === 'image') generateImage(text);
+      else sendMessage(text);
     });
+
+    /* ============== Image generation ============== */
+    async function generateImage(promptText) {
+      const prompt = promptText.trim();
+      if (!prompt) return;
+
+      addMsg('user', prompt);
+
+      const wrapEl = document.createElement('div');
+      wrapEl.className = 'msg assistant';
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.textContent = 'Grok Image';
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      bubble.innerHTML = '<div class="thinking" aria-label="Generating image"><span></span><span></span><span></span></div>';
+      wrapEl.appendChild(meta);
+      wrapEl.appendChild(bubble);
+      log.appendChild(wrapEl);
+      scrollToBottom();
+
+      let stopped = false;
+      streaming = { abort: () => { stopped = true; } };
+      setStreamingState(true);
+
+      try {
+        if (!window.puter || !puter.ai?.txt2img) {
+          throw new Error('Puter.js failed to load. Check your network and refresh.');
+        }
+        const [provider, model] = imageModelEl.value.split('|');
+        const result = await puter.ai.txt2img(prompt, { provider, model });
+
+        if (stopped) {
+          wrapEl.remove();
+          return;
+        }
+
+        // Puter returns an HTMLImageElement (or sometimes a string URL — handle both).
+        let img;
+        if (result instanceof HTMLImageElement) {
+          img = result;
+        } else if (typeof result === 'string') {
+          img = new Image();
+          img.src = result;
+        } else if (result?.src) {
+          img = new Image();
+          img.src = result.src;
+        } else {
+          throw new Error('Unexpected image response from Puter.');
+        }
+        img.classList.add('gen-image');
+        img.alt = prompt;
+        img.loading = 'lazy';
+        img.decoding = 'async';
+
+        bubble.innerHTML = '';
+        const imgWrap = document.createElement('div');
+        imgWrap.className = 'gen-image-wrap';
+        imgWrap.appendChild(img);
+
+        const actions = document.createElement('div');
+        actions.className = 'gen-image-actions';
+
+        // Download
+        const dl = document.createElement('a');
+        dl.href = img.src;
+        dl.download = `grokky-${Date.now()}.png`;
+        dl.target = '_blank';
+        dl.rel = 'noopener';
+        dl.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>Download`;
+        actions.appendChild(dl);
+
+        // Copy URL
+        const copyBtn = document.createElement('button');
+        copyBtn.type = 'button';
+        copyBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Copy URL`;
+        copyBtn.addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(img.src);
+            copyBtn.classList.add('ok');
+            copyBtn.lastChild.textContent = 'Copied';
+            setTimeout(() => { copyBtn.classList.remove('ok'); copyBtn.lastChild.textContent = 'Copy URL'; }, 1500);
+          } catch { showToast('Copy failed'); }
+        });
+        actions.appendChild(copyBtn);
+
+        // Open in new tab
+        const open = document.createElement('a');
+        open.href = img.src;
+        open.target = '_blank';
+        open.rel = 'noopener';
+        open.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>Open`;
+        actions.appendChild(open);
+
+        imgWrap.appendChild(actions);
+
+        const caption = document.createElement('div');
+        caption.className = 'gen-caption';
+        caption.textContent = `"${prompt}"`;
+        imgWrap.appendChild(caption);
+
+        bubble.appendChild(imgWrap);
+        if (isAtBottom()) scrollToBottom(false);
+      } catch (err) {
+        console.error(err);
+        wrapEl.classList.remove('assistant');
+        wrapEl.classList.add('error');
+        bubble.textContent = humanizeImageError(err);
+      } finally {
+        streaming = null;
+        setStreamingState(false);
+        input.focus();
+      }
+    }
+
+    function humanizeImageError(err) {
+      const msg = (err?.message || err?.error?.message || String(err) || '').toLowerCase();
+      if (msg.includes('moderation') || msg.includes('policy') || msg.includes('safety') || msg.includes('nsfw')) {
+        return 'That prompt was blocked by content policy. Try rephrasing.';
+      }
+      if (msg.includes('quota') || msg.includes('limit') || msg.includes('insufficient')) {
+        return 'Your Puter account has run out of credits for this model. Top up at puter.com.';
+      }
+      if (msg.includes('network') || msg.includes('fetch') || msg.includes('failed')) {
+        return 'Network problem — check your connection and try again.';
+      }
+      return `Image generation failed: ${err?.message || err}`;
+    }
 
     /* Message-level actions: copy / regenerate */
     log.addEventListener('click', async (e) => {
