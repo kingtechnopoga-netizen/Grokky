@@ -626,11 +626,11 @@
         </div>
         <div class="model-select" id="image-model-wrap" hidden>
           <select id="image-model" aria-label="Choose image model">
-            <option value="xai|grok-2-image">Grok 2 Image</option>
-            <option value="openai-image-generation|gpt-image-1-mini">GPT Image Mini</option>
+            <option value="openai-image-generation|gpt-image-1-mini">GPT Image Mini (recommended)</option>
             <option value="openai-image-generation|gpt-image-1">GPT Image</option>
             <option value="openai-image-generation|dall-e-3">DALL·E 3</option>
             <option value="gemini|imagen-4">Imagen 4</option>
+            <option value="xai|grok-2-image">Grok 2 Image (requires xAI access)</option>
           </select>
         </div>
         <button class="icon-btn" id="theme-btn" aria-label="Toggle theme" title="Toggle theme">
@@ -1134,13 +1134,16 @@
 
     function humanizeImageError(err) {
       const msg = (err?.message || err?.error?.message || String(err) || '').toLowerCase();
+      if (msg.includes('does not have access') || msg.includes('does not exist') || msg.includes('404')) {
+        return 'Your Puter account doesn\'t have access to this image model. Pick a different model from the dropdown above (GPT Image Mini, DALL·E 3, or Imagen 4 usually work) and try again.';
+      }
       if (msg.includes('moderation') || msg.includes('policy') || msg.includes('safety') || msg.includes('nsfw')) {
         return 'That prompt was blocked by content policy. Try rephrasing.';
       }
-      if (msg.includes('quota') || msg.includes('limit') || msg.includes('insufficient')) {
-        return 'Your Puter account has run out of credits for this model. Top up at puter.com.';
+      if (msg.includes('quota') || msg.includes('limit') || msg.includes('insufficient') || msg.includes('credits')) {
+        return 'Your Puter account has run out of credits for this model. Top up at puter.com or pick a cheaper model.';
       }
-      if (msg.includes('network') || msg.includes('fetch') || msg.includes('failed')) {
+      if (msg.includes('network') || msg.includes('fetch') || msg.includes('failed to fetch')) {
         return 'Network problem — check your connection and try again.';
       }
       return `Image generation failed: ${err?.message || err}`;
