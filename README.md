@@ -19,7 +19,24 @@ for await (const part of response) {
 }
 ```
 
-## Run it
+## Deploy to Render (free)
+
+This repo includes a [`render.yaml`](./render.yaml) Blueprint that deploys it as a **Static Site** — free tier, no spin-down, auto-deploys on every push to `main`.
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/kingtechnopoga-netizen/Grokky)
+
+Or manually:
+
+1. Go to <https://dashboard.render.com/> → **New** → **Blueprint**
+2. Connect your GitHub and pick `kingtechnopoga-netizen/Grokky`
+3. Render reads `render.yaml`, creates the static site, and deploys it
+4. After ~30 seconds you get a live URL like `https://grokky.onrender.com`
+
+That's it — no build command, no env vars, no backend. Puter.js handles auth and billing in the user's browser.
+
+> Note: don't pick the **Web Service** option — this app is pure HTML/JS, so a Static Site is faster, free, and never sleeps.
+
+## Run it locally
 
 It's just one HTML file. Pick whichever is easiest:
 

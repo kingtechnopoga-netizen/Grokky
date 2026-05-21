@@ -1,0 +1,20 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# Deploys Grokky as a free Static Site. No build step needed.
+services:
+  - type: web
+    name: grokky
+    runtime: static
+    buildCommand: ""        # nothing to build — just static files
+    staticPublishPath: .    # serve repo root (where index.html lives)
+    pullRequestPreviewsEnabled: true
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: SAMEORIGIN
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
