@@ -8,6 +8,14 @@
   <meta name="description" content="Grokky — free, unlimited chat & image generation. No signup, no API key." />
   <title>Grokky — Free AI Chat & Images</title>
 
+  <!--
+    Optional Claude prompt-enhancer backend.
+    Leave content="" to disable. After deploying server/ on Render, paste the
+    URL here, e.g.: <meta name="grokky-api" content="https://grokky-api.onrender.com">
+    Users can also override at runtime via the gear icon in the header.
+  -->
+  <meta name="grokky-api" content="" />
+
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1' y1='0' y2='1'%3E%3Cstop offset='0' stop-color='%237c3aed'/%3E%3Cstop offset='1' stop-color='%23ec4899'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='url(%23g)'/%3E%3Ctext x='50%25' y='56%25' text-anchor='middle' font-family='system-ui,sans-serif' font-size='38' font-weight='800' fill='white'%3EG%3C/text%3E%3C/svg%3E" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -280,8 +288,23 @@
       border-color: var(--brand-1); color: var(--brand-2);
     }
     .mode-btn svg { width: 18px; height: 18px; }
+    .enhance-btn[aria-pressed="true"] {
+      background: linear-gradient(135deg, rgba(245,158,11,0.20), rgba(236,72,153,0.18));
+      border-color: #f59e0b; color: #f59e0b;
+      box-shadow: 0 0 0 2px rgba(245,158,11,0.18);
+    }
     .composer.image-mode { border-color: var(--brand-2); }
     .composer.image-mode:focus-within { box-shadow: 0 0 0 3px rgba(236,72,153,0.18), var(--shadow); }
+
+    .enhance-info {
+      font-size: 12px; color: var(--text-dim);
+      background: var(--surface); border: 1px solid var(--border);
+      border-left: 3px solid #f59e0b;
+      padding: 8px 12px; border-radius: 8px;
+      margin-bottom: 8px; line-height: 1.5;
+    }
+    .enhance-info strong { color: #f59e0b; font-weight: 600; }
+    .enhance-info .orig { color: var(--text-faint); font-style: italic; }
 
     .gen-image-wrap { display: inline-block; max-width: 100%; }
     .gen-image {
@@ -352,6 +375,9 @@
         <span class="pill" id="status-pill">free · no signup</span>
       </div>
       <div class="actions">
+        <button class="icon-btn" id="settings-btn" aria-label="Backend settings" title="Configure Claude enhancer">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82 1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
         <button class="icon-btn" id="theme-btn" aria-label="Toggle theme" title="Toggle theme">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
         </button>
@@ -367,6 +393,9 @@
       <form class="composer" id="form">
         <button type="button" class="mode-btn" id="mode-btn" aria-pressed="false" aria-label="Toggle image mode" title="Toggle image mode">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>
+        </button>
+        <button type="button" class="mode-btn enhance-btn" id="enhance-btn" aria-pressed="false" aria-label="Toggle Claude prompt enhancer" title="Enhance prompt with Claude (image mode only)" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/><circle cx="12" cy="12" r="3"/></svg>
         </button>
         <textarea id="input" rows="1" placeholder="Message…" autocomplete="off" autocapitalize="sentences" spellcheck="true" enterkeyhint="send" aria-label="Message"></textarea>
         <button class="send-btn" id="send" type="submit" aria-label="Send">
@@ -388,10 +417,28 @@
     const CHAT_MODEL     = 'openai-fast'; // GPT-OSS 20B reasoning, the free anonymous-tier model
     const IMAGE_ENDPOINT = 'https://image.pollinations.ai/prompt/';
 
+    // Optional Claude prompt-enhancer backend. Resolved in this order:
+    //   1. localStorage override (set via the gear icon)
+    //   2. <meta name="grokky-api" content="...">  (edit before deploying)
+    //   3. http://localhost:10000 if running locally
+    //   4. empty string -> enhancer disabled, app still works without it
+    function resolveApiBase() {
+      const ls = (localStorage.getItem('grokky.apiBase') || '').trim();
+      if (ls) return ls.replace(/\/+$/, '');
+      const meta = (document.querySelector('meta[name="grokky-api"]')?.content || '').trim();
+      if (meta) return meta.replace(/\/+$/, '');
+      const host = location.hostname;
+      if (host === 'localhost' || host === '127.0.0.1') return 'http://localhost:10000';
+      return '';
+    }
+    let API_BASE = resolveApiBase();
+
     const STORAGE_KEYS = {
       history: 'grokky.history.v2',
       theme:   'grokky.theme.v2',
       mode:    'grokky.mode.v2',
+      enhance: 'grokky.enhance.v1',
+      apiBase: 'grokky.apiBase',
     };
 
     /* ============== Elements ============== */
@@ -402,7 +449,9 @@
     const sendIcon    = document.getElementById('send-icon');
     const clearBtn    = document.getElementById('clear-btn');
     const themeBtn    = document.getElementById('theme-btn');
+    const settingsBtn = document.getElementById('settings-btn');
     const modeBtn     = document.getElementById('mode-btn');
+    const enhanceBtn  = document.getElementById('enhance-btn');
     const composer    = document.querySelector('.composer');
     const footerHint  = document.getElementById('footer-hint');
     const toastEl     = document.getElementById('toast');
@@ -411,6 +460,7 @@
     let history = [];
     let abortCtrl = null;     // AbortController for the in-flight chat request
     let mode = 'chat';        // 'chat' | 'image'
+    let enhanceOn = localStorage.getItem(STORAGE_KEYS.enhance) === '1';
 
     /* ============== Markdown ============== */
     marked.setOptions({ breaks: true, gfm: true });
@@ -481,17 +531,84 @@
       const isImage = mode === 'image';
       modeBtn.setAttribute('aria-pressed', String(isImage));
       composer.classList.toggle('image-mode', isImage);
+      enhanceBtn.hidden = !isImage;     // enhancer only makes sense for images
       input.placeholder = isImage ? 'Describe an image to generate…' : 'Message…';
-      footerHint.innerHTML = isImage
-        ? 'Image mode · <span class="kbd">Enter</span> to generate · powered by <a href="https://pollinations.ai" target="_blank" rel="noopener">Pollinations.ai</a>'
-        : '<span class="kbd">Enter</span> to send · <span class="kbd">Shift+Enter</span> newline · powered by <a href="https://pollinations.ai" target="_blank" rel="noopener">Pollinations.ai</a>';
+      updateFooterHint();
       localStorage.setItem(STORAGE_KEYS.mode, mode);
+    }
+    function updateFooterHint() {
+      const isImage = mode === 'image';
+      const enhBit = isImage && enhanceOn && API_BASE
+        ? ' · <strong style="color:#f59e0b">✨ Claude enhance on</strong>'
+        : '';
+      footerHint.innerHTML = isImage
+        ? 'Image mode · <span class="kbd">Enter</span> to generate' + enhBit + ' · powered by <a href="https://pollinations.ai" target="_blank" rel="noopener">Pollinations.ai</a>'
+        : '<span class="kbd">Enter</span> to send · <span class="kbd">Shift+Enter</span> newline · powered by <a href="https://pollinations.ai" target="_blank" rel="noopener">Pollinations.ai</a>';
     }
     modeBtn.addEventListener('click', () => applyMode(mode === 'image' ? 'chat' : 'image'));
     (() => {
       const saved = localStorage.getItem(STORAGE_KEYS.mode);
       if (saved === 'image') applyMode('image'); else applyMode('chat');
     })();
+
+    /* ============== Claude enhancer toggle ============== */
+    function applyEnhance(next) {
+      enhanceOn = next;
+      enhanceBtn.setAttribute('aria-pressed', String(enhanceOn));
+      localStorage.setItem(STORAGE_KEYS.enhance, enhanceOn ? '1' : '0');
+      updateFooterHint();
+    }
+    enhanceBtn.setAttribute('aria-pressed', String(enhanceOn));
+    enhanceBtn.addEventListener('click', () => {
+      // If the user is enabling the enhancer but no backend is configured,
+      // walk them through setting one up rather than failing silently later.
+      if (!enhanceOn && !API_BASE) {
+        const ok = confirm(
+          'The Claude prompt enhancer needs a backend URL.\n\n' +
+          'Deploy the server/ folder on Render, then paste its URL (e.g. https://grokky-api.onrender.com) on the next prompt.'
+        );
+        if (!ok) return;
+        if (!promptForApiBase()) return;
+      }
+      applyEnhance(!enhanceOn);
+    });
+
+    /* ============== Backend settings (gear icon) ============== */
+    function promptForApiBase() {
+      const current = localStorage.getItem(STORAGE_KEYS.apiBase) || API_BASE || '';
+      const next = window.prompt(
+        'Claude enhancer backend URL\n\n' +
+        'Paste the URL of your deployed grokky-api service.\n' +
+        'Leave empty to clear and disable the enhancer.\n\n' +
+        'Example: https://grokky-api.onrender.com',
+        current
+      );
+      if (next === null) return false;             // user cancelled
+      const trimmed = next.trim().replace(/\/+$/, '');
+      if (!trimmed) {
+        localStorage.removeItem(STORAGE_KEYS.apiBase);
+        API_BASE = resolveApiBase();
+        if (enhanceOn) applyEnhance(false);
+        showToast('Enhancer backend cleared');
+        updateFooterHint();
+        return false;
+      }
+      if (!/^https?:\/\//i.test(trimmed)) {
+        showToast('URL must start with http:// or https://');
+        return false;
+      }
+      localStorage.setItem(STORAGE_KEYS.apiBase, trimmed);
+      API_BASE = trimmed;
+      showToast('Saved. Testing connection…');
+      // Best-effort health check, just to give the user feedback.
+      fetch(API_BASE + '/healthz', { mode: 'cors' })
+        .then((r) => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
+        .then((j) => showToast(j.hasKey ? 'Backend OK' : 'Backend reachable but ANTHROPIC_API_KEY missing'))
+        .catch((err) => showToast('Backend unreachable: ' + (err.message || err)));
+      updateFooterHint();
+      return true;
+    }
+    settingsBtn.addEventListener('click', () => promptForApiBase());
 
     /* ============== Empty state / suggestions ============== */
     const SUGGESTIONS = [
@@ -766,21 +883,54 @@
     }
 
     /* ============== Image generation (Pollinations) ============== */
-    function generateImage(promptText) {
-      const prompt = promptText.trim();
-      if (!prompt) return;
+    // Optional pre-step: ask the Claude backend to expand a short user idea into
+    // a richer image-gen prompt. Returns the enhanced prompt or null on failure.
+    async function enhanceWithClaude(rawPrompt) {
+      if (!API_BASE) return null;
+      try {
+        const res = await fetch(API_BASE + '/api/enhance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: rawPrompt }),
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error || `HTTP ${res.status}`);
+        }
+        const json = await res.json();
+        return typeof json.enhanced === 'string' && json.enhanced.trim() ? json.enhanced.trim() : null;
+      } catch (err) {
+        console.warn('[enhance] failed, falling back to raw prompt:', err);
+        showToast('Enhancer failed — using your prompt as-is. ' + (err.message || ''));
+        return null;
+      }
+    }
 
-      addMsg('user', prompt);
+    async function generateImage(promptText) {
+      const userPrompt = promptText.trim();
+      if (!userPrompt) return;
+
+      addMsg('user', userPrompt);
 
       const wrapEl = document.createElement('div');
       wrapEl.className = 'msg assistant';
       wrapEl.innerHTML = '<div class="meta">AI Image</div>';
       const bubble = document.createElement('div');
       bubble.className = 'bubble';
-      bubble.innerHTML = '<div class="thinking"><span></span><span></span><span></span></div>';
+      bubble.innerHTML = enhanceOn && API_BASE
+        ? '<div class="thinking"><span></span><span></span><span></span></div><div style="margin-top:6px;font-size:12px;color:var(--text-dim)">Asking Claude to enhance your prompt…</div>'
+        : '<div class="thinking"><span></span><span></span><span></span></div>';
       wrapEl.appendChild(bubble);
       log.appendChild(wrapEl);
       scrollToBottom();
+
+      // Enhance the prompt via Claude if enabled, else use it raw.
+      let finalPrompt = userPrompt;
+      let enhanced = null;
+      if (enhanceOn && API_BASE) {
+        enhanced = await enhanceWithClaude(userPrompt);
+        if (enhanced) finalPrompt = enhanced;
+      }
 
       // Pollinations builds images from URL params. Random seed = unique image.
       const seed = Math.floor(Math.random() * 1_000_000_000);
@@ -788,17 +938,28 @@
         width: '1024', height: '1024', seed: String(seed),
         nologo: 'true', enhance: 'true',
       });
-      const url = IMAGE_ENDPOINT + encodeURIComponent(prompt) + '?' + params;
+      const url = IMAGE_ENDPOINT + encodeURIComponent(finalPrompt) + '?' + params;
 
       const img = new Image();
       img.classList.add('gen-image');
-      img.alt = prompt;
+      img.alt = finalPrompt;
       img.loading = 'lazy';
       img.decoding = 'async';
       img.referrerPolicy = 'no-referrer';
 
       img.onload = () => {
         bubble.innerHTML = '';
+
+        // If the prompt got enhanced, show both versions above the image.
+        if (enhanced && enhanced !== userPrompt) {
+          const info = document.createElement('div');
+          info.className = 'enhance-info';
+          info.innerHTML =
+            '<div class="orig"><strong>You:</strong> ' + escapeHtml(userPrompt) + '</div>' +
+            '<div style="margin-top:4px"><strong>✨ Claude:</strong> ' + escapeHtml(enhanced) + '</div>';
+          bubble.appendChild(info);
+        }
+
         const imgWrap = document.createElement('div');
         imgWrap.className = 'gen-image-wrap';
         imgWrap.appendChild(img);
@@ -837,7 +998,9 @@
         remix.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>New seed`;
         remix.addEventListener('click', () => {
           wrapEl.remove();
-          generateImage(prompt);
+          // Use the (already enhanced, if applicable) finalPrompt for new seeds —
+          // re-running the enhancer would just give a different prompt, not a remix.
+          generateImageFromFinal(userPrompt, finalPrompt, enhanced);
         });
         actions.appendChild(remix);
 
@@ -845,7 +1008,7 @@
 
         const caption = document.createElement('div');
         caption.className = 'gen-caption';
-        caption.textContent = `"${prompt}"`;
+        caption.textContent = `"${finalPrompt}"`;
         imgWrap.appendChild(caption);
 
         bubble.appendChild(imgWrap);
@@ -860,6 +1023,105 @@
       };
 
       img.src = url;
+    }
+
+    // Re-render the same enhanced prompt with a different seed (used by "New seed").
+    function generateImageFromFinal(userPrompt, finalPrompt, enhanced) {
+      addMsg('user', userPrompt);
+      const wrapEl = document.createElement('div');
+      wrapEl.className = 'msg assistant';
+      wrapEl.innerHTML = '<div class="meta">AI Image</div>';
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      bubble.innerHTML = '<div class="thinking"><span></span><span></span><span></span></div>';
+      wrapEl.appendChild(bubble);
+      log.appendChild(wrapEl);
+      scrollToBottom();
+
+      const seed = Math.floor(Math.random() * 1_000_000_000);
+      const params = new URLSearchParams({
+        width: '1024', height: '1024', seed: String(seed),
+        nologo: 'true', enhance: 'true',
+      });
+      const url = IMAGE_ENDPOINT + encodeURIComponent(finalPrompt) + '?' + params;
+
+      const img = new Image();
+      img.classList.add('gen-image');
+      img.alt = finalPrompt;
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      img.referrerPolicy = 'no-referrer';
+
+      img.onload = () => {
+        bubble.innerHTML = '';
+        if (enhanced && enhanced !== userPrompt) {
+          const info = document.createElement('div');
+          info.className = 'enhance-info';
+          info.innerHTML =
+            '<div class="orig"><strong>You:</strong> ' + escapeHtml(userPrompt) + '</div>' +
+            '<div style="margin-top:4px"><strong>✨ Claude:</strong> ' + escapeHtml(enhanced) + '</div>';
+          bubble.appendChild(info);
+        }
+        const imgWrap = document.createElement('div');
+        imgWrap.className = 'gen-image-wrap';
+        imgWrap.appendChild(img);
+
+        const actions = document.createElement('div');
+        actions.className = 'gen-image-actions';
+        const dl = document.createElement('a');
+        dl.href = url; dl.download = `grokky-${Date.now()}.jpg`; dl.target = '_blank'; dl.rel = 'noopener';
+        dl.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>Download`;
+        actions.appendChild(dl);
+
+        const copyBtn = document.createElement('button');
+        copyBtn.type = 'button';
+        copyBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Copy URL`;
+        copyBtn.addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(url);
+            copyBtn.classList.add('ok'); copyBtn.lastChild.textContent = 'Copied';
+            setTimeout(() => { copyBtn.classList.remove('ok'); copyBtn.lastChild.textContent = 'Copy URL'; }, 1500);
+          } catch { showToast('Copy failed'); }
+        });
+        actions.appendChild(copyBtn);
+
+        const open = document.createElement('a');
+        open.href = url; open.target = '_blank'; open.rel = 'noopener';
+        open.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>Open`;
+        actions.appendChild(open);
+
+        const remix = document.createElement('button');
+        remix.type = 'button';
+        remix.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>New seed`;
+        remix.addEventListener('click', () => {
+          wrapEl.remove();
+          generateImageFromFinal(userPrompt, finalPrompt, enhanced);
+        });
+        actions.appendChild(remix);
+
+        imgWrap.appendChild(actions);
+        const caption = document.createElement('div');
+        caption.className = 'gen-caption';
+        caption.textContent = `"${finalPrompt}"`;
+        imgWrap.appendChild(caption);
+        bubble.appendChild(imgWrap);
+        if (isAtBottom()) scrollToBottom(false);
+      };
+
+      img.onerror = () => {
+        wrapEl.classList.remove('assistant');
+        wrapEl.classList.add('error');
+        bubble.innerHTML = '';
+        bubble.textContent = 'Image generation failed. Pollinations may be busy — try again in a moment.';
+      };
+      img.src = url;
+    }
+
+    // Tiny HTML escaper for the enhance-info display (the prompt is user input).
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+      }[c]));
     }
 
     function humanizeError(err) {

@@ -1,11 +1,40 @@
 # Render Blueprint — https://render.com/docs/blueprint-spec
-# Deploys Grokky as a free Static Site. No build step needed.
+#
+# Deploys two services:
+#   1. grokky-api  — Node web service that proxies Anthropic Claude calls.
+#                    The Anthropic API key lives ONLY here, as a secret env var.
+#   2. grokky      — the static single-page app.
+#
+# After first deploy, in the Render dashboard:
+#   - Open the "grokky-api" service → Environment → set ANTHROPIC_API_KEY.
+#   - Copy the service's URL (e.g. https://grokky-api.onrender.com) and
+#     either edit the <meta name="grokky-api"> tag in index.html OR open
+#     the deployed site, click the gear icon, and paste the URL there.
+
 services:
+  # ---------- Backend: Anthropic proxy ----------
+  - type: web
+    name: grokky-api
+    runtime: node
+    plan: free
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false              # mark as secret — set manually in the dashboard
+      - key: ALLOWED_ORIGINS
+        value: "*"               # tighten this once you know your static site's URL
+      - key: CLAUDE_MODEL
+        value: claude-3-5-haiku-latest
+
+  # ---------- Frontend: static site ----------
   - type: web
     name: grokky
     runtime: static
-    buildCommand: ""        # nothing to build — just static files
-    staticPublishPath: .    # serve repo root (where index.html lives)
+    buildCommand: ""
+    staticPublishPath: .
     pullRequestPreviewsEnabled: true
     headers:
       - path: /*
